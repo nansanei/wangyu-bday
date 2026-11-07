@@ -72,6 +72,25 @@
              opacity:0;visibility:hidden;transition:opacity 1s ease}
   #replayRow.on{opacity:1;visibility:visible}
 
+
+  /* ===== 中间那一张文案（烟花之后 / 蛋糕之前） ===== */
+  #letter{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;gap:38px;
+          padding:0 8vw;opacity:0;visibility:hidden;
+          background:radial-gradient(120% 90% at 50% 46%,rgba(20,14,34,.86) 0%,rgba(8,6,16,.92) 60%,rgba(4,3,9,.96) 100%);
+          transition:opacity 1s ease}
+  #letter.on{opacity:1;visibility:visible}
+  #letter .box{max-width:min(86vw,520px);text-align:center}
+  #letter .ln{margin:0 0 .72em;font-size:clamp(15px,4.2vw,18.5px);line-height:1.95;
+              letter-spacing:.045em;color:rgba(255,240,224,.93);
+              opacity:0;transform:translateY(12px);filter:blur(7px);
+              transition:opacity 1.25s ease,transform 1.25s ease,filter 1.25s ease;
+              text-shadow:0 2px 24px rgba(0,0,0,.8)}
+  #letter .ln.on{opacity:1;transform:none;filter:none}
+  #letter .ln:last-child{margin-bottom:0;color:#ffe0b4}
+  #toCake{opacity:0;transition:opacity .9s ease}
+  #toCake.on{opacity:1}
+
   /* 开场门 */
   #gate{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;
         align-items:center;justify-content:center;gap:22px;
@@ -82,6 +101,8 @@
              box-shadow:0 0 22px 6px rgba(255,180,110,.45);animation:br 2.6s ease-in-out infinite}
   @keyframes br{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
   #gate span{font-size:14.5px;letter-spacing:.22em;color:rgba(255,226,196,.62)}
+  #gate em{position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));font-style:normal;
+          font-size:10.5px;letter-spacing:.06em;color:rgba(255,226,196,.22)}
 
   #fade{position:fixed;inset:0;z-index:7;background:#040308;opacity:0;pointer-events:none;
         transition:opacity .65s ease}
@@ -135,8 +156,21 @@ var CONFIG = {
   </div>
 </div>
 
+
+<div id="letter">
+  <div class="box">
+    <p class="ln">你当然可以想要 iPhone Duo</p>
+    <p class="ln">但我也没有答应要给你买</p>
+    <p class="ln">况且我也没有闲钱买</p>
+    <p class="ln">以后一定有一个很爱你的人给你买的</p>
+  </div>
+  <button class="pill" id="toCake">继续 →</button>
+</div>
+
 <div id="fade"></div>
-<div id="gate"><div class="dot"></div><span>点一下</span></div>
+<div id="gate"><div class="dot"></div><span>点一下</span><em>♪ Kevin MacLeod · CC BY 4.0</em></div>
+
+<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
 
 <script>
 /* =====================================================================
@@ -225,9 +259,27 @@ function paintBg() {
 }
 
 /* =====================================================================
-   3. 声音（全部合成，不带音频文件）
+   3. 声音（音效现场合成；背景音乐单独一个 mp3）
    ===================================================================== */
 var AC = null, noiseBuf = null, muted = false;
+
+/* 背景音乐：点「点一下」时开始，3 秒内淡入到很低，只当底噪 */
+var BGM_VOL = 0.22;
+function startBgm() {
+  var b = document.getElementById('bgm');
+  if (!b || muted) return;
+  try {
+    b.volume = 0;
+    var p = b.play();
+    if (p && p.catch) p.catch(function () {});
+    var t0 = Date.now();
+    var iv = setInterval(function () {
+      var k = (Date.now() - t0) / 3000;
+      if (k >= 1) { b.volume = BGM_VOL; clearInterval(iv); return; }
+      b.volume = BGM_VOL * k;
+    }, 50);
+  } catch (e) {}
+}
 function audioInit() {
   if (AC) return;
   try {
@@ -1163,6 +1215,7 @@ function start() {
   started = true;
   audioInit();
   if (AC && AC.state === 'suspended') AC.resume();
+  startBgm();
   gateEl.classList.add('off');
   renderCopy();
   t = 0;
@@ -1172,10 +1225,15 @@ function start() {
 gateEl.addEventListener('pointerdown', start);
 gateEl.addEventListener('touchstart', function (e) { e.preventDefault(); start(); }, { passive: false });
 
-document.getElementById('next').addEventListener('click', enterCake);
+document.getElementById('next').addEventListener('click', showLetter);
 document.getElementById('micBtn').addEventListener('click', startMic);
 document.getElementById('mute').addEventListener('click', function () {
   muted = !muted;
+  var b = document.getElementById('bgm');
+  if (b) {
+    if (muted) b.pause();
+    else { b.muted = false; b.volume = BGM_VOL; var p = b.play(); if (p && p.catch) p.catch(function () {}); }
+  }
   this.textContent = muted ? '✕' : '♪';
   this.style.color = muted ? 'rgba(255,226,196,.35)' : 'rgba(255,226,196,.6)';
 });
@@ -1199,6 +1257,8 @@ function restartAll() {
   document.getElementById('wishOut').classList.remove('on');
   document.getElementById('cakeUI').classList.remove('on');
   document.getElementById('next').classList.remove('on');
+  letterEl.className = '';
+  document.getElementById('toCake').classList.remove('on');
   document.getElementById('meter').style.display = 'none';
   document.getElementById('holdBtn').style.display = 'none';
   document.getElementById('cakeHint').style.opacity = '1';
@@ -1258,6 +1318,25 @@ function loop(ms) {
 resize();
 renderCopy();
 requestAnimationFrame(loop);
+
+/* ===== 中间文案页：烟花之后停一下，再进蛋糕 ===== */
+var letterEl = document.getElementById('letter');
+function showLetter() {
+  document.getElementById('next').classList.remove('on');
+  copyEl.style.opacity = '0';
+  letterEl.classList.add('on');
+  var ls = letterEl.querySelectorAll('.ln');
+  for (var i = 0; i < ls.length; i++) {
+    (function (el, k) { setTimeout(function () { el.classList.add('on'); }, 480 + k * 880); })(ls[i], i);
+  }
+  setTimeout(function () { document.getElementById('toCake').classList.add('on'); }, 480 + ls.length * 880 + 500);
+}
+document.getElementById('toCake').addEventListener('click', function () {
+  letterEl.classList.remove('on');
+  document.getElementById('toCake').classList.remove('on');
+  setTimeout(enterCake, 620);
+});
+
 </script>
 </body>
 </html>
