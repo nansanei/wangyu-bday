@@ -7,6 +7,7 @@
 <title>生日快乐</title>
 <style>
   *{box-sizing:border-box}
+  :root{--sab:env(safe-area-inset-bottom,0px)}
   html,body{margin:0;height:100%;background:#050409;overflow:hidden}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
@@ -45,29 +46,29 @@
   #cakeUI{position:absolute;inset:0;opacity:0;transition:opacity .9s ease;pointer-events:none}
   #cakeUI.on{opacity:1}
   #cakeHint{
-    position:absolute;left:0;right:0;bottom:calc(146px + env(safe-area-inset-bottom));
-    text-align:center;font-size:14.5px;letter-spacing:.05em;color:rgba(255,232,206,.72);
-    padding:0 10vw;line-height:1.7;transition:opacity .6s ease
+    position:absolute;left:0;right:0;bottom:calc(102px + env(safe-area-inset-bottom));
+    text-align:center;font-size:clamp(12.5px,3.6vw,14.5px);letter-spacing:.02em;color:rgba(255,232,206,.72);
+    padding:0 6vw;line-height:1.6;transition:opacity .6s ease
   }
   #micBtn{position:absolute;left:50%;transform:translateX(-50%);
-          bottom:calc(64px + env(safe-area-inset-bottom))}
+          bottom:calc(50px + env(safe-area-inset-bottom))}
   #holdBtn{position:absolute;left:50%;transform:translateX(-50%);
-           bottom:calc(64px + env(safe-area-inset-bottom));display:none}
+           bottom:calc(50px + env(safe-area-inset-bottom));display:none}
   #meter{position:absolute;left:50%;transform:translateX(-50%);
-         bottom:calc(104px + env(safe-area-inset-bottom));width:min(54vw,240px);height:4px;
+         bottom:calc(148px + env(safe-area-inset-bottom));width:min(54vw,240px);height:4px;
          border-radius:4px;background:rgba(255,220,180,.15);overflow:hidden;display:none}
   #meter i{display:block;height:100%;width:0%;border-radius:4px;
            background:linear-gradient(90deg,#ffb066,#ffd9a0,#fff3e2);
            transition:width .08s linear}
   #wishOut{
-    position:absolute;left:0;right:0;bottom:calc(116px + env(safe-area-inset-bottom));text-align:center;padding:0 8vw;
+    position:absolute;left:0;right:0;bottom:70vh;text-align:center;padding:0 8vw;
     font-size:clamp(17px,4.8vw,24px);letter-spacing:.14em;line-height:1.6;
     color:#ffe9cc;opacity:0;transform:translateY(14px);filter:blur(9px);
     transition:opacity 1.4s ease .35s, transform 1.4s ease .35s, filter 1.4s ease .35s;
     text-shadow:0 2px 30px rgba(255,170,90,.35),0 0 60px rgba(255,140,70,.22)
   }
   #wishOut.on{opacity:1;transform:none;filter:none}
-  #replayRow{position:absolute;left:0;right:0;bottom:calc(52px + env(safe-area-inset-bottom));
+  #replayRow{position:absolute;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));
              display:flex;justify-content:center;gap:10px;
              opacity:0;visibility:hidden;transition:opacity 1s ease}
   #replayRow.on{opacity:1;visibility:visible}
@@ -814,7 +815,20 @@ function layoutCake() {
   cake.fit = fit;
   cake.dw = IMG_W * fit; cake.dh = IMG_H * fit;
   cake.dx = (W - cake.dw) / 2;
-  cake.dy = H * 0.80 - 1140 * fit;
+  // 底部固定留出 UI 空间（进度条 140 + 提示 104 + 按钮 50），蛋糕不再压住文案
+  var sab = 0;
+  try {
+    sab = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sab')) || 0;
+  } catch (e) { sab = 0; }
+  cake.uiRoom = 186 + sab;
+  cake.dy = H - cake.uiRoom - 1140 * fit;
+
+  // 「许个愿吧」放到蛋糕主体上方
+  var wishEl = document.getElementById('wishOut');
+  if (wishEl) {
+    var cakeTopY = cake.dy + 391 * fit;      // 蛋糕主体顶边
+    wishEl.style.bottom = Math.max(H - cakeTopY + 26, 40) + 'px';
+  }
 
   // 19 根：外圈 12 + 中圈 6 + 中心 1
   var spec = [];
